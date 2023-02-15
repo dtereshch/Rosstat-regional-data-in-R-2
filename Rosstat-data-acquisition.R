@@ -3,10 +3,7 @@ library(readxl)
 
 rm(list = ls())
 
-HSE_rating_path <- "~/Documents/eco archives/data/ВШЭ_Рейтинг_инно_развития/"
 regions_data_path <- "~/Documents/eco archives/data/Регионы России/приложения/pril2021/"
-project_path <- "~/Documents/GitHub/inno-inst-panel-paper/"
-
 
 # Rosstat data =================================================================
 setwd(regions_data_path)
@@ -185,56 +182,7 @@ regions_datasets <- lapply(regions_datasets, mutate,
 regions_rosstat <- regions_datasets %>% reduce(full_join, by = c("region_rus", "year"))
 
 
-# HSE rating data ==============================================================
-setwd(HSE_rating_path)
-policy_dummies <- read_csv("policy_dummies_panel.csv") %>% dplyr::select(-region_HSE)
-
-
-# Merging Rosstat data with HSE rating =========================================
-regions_full <- regions_rosstat %>% 
-  mutate(year = as.double(year)) %>% 
-  full_join(policy_dummies, by = c("region_rus", "year"))
-
-regions_full <- regions_full %>% 
-  arrange(region_rus, year) %>% 
-  group_by(region_rus) %>% 
-  fill(region_shp, .direction = "downup") %>%
-  ungroup()
-
-# Manipulations with variables =================================================
-
-### Calculating real values of monetary variables
-regions_full <- regions_full %>% mutate(cpi = basket / basket_Russia_base, 
-                                        grpr = grp / cpi,
-                                        invr = invest / cpi,
-                                        manr = manuf / cpi,
-                                        minr = mining / cpi, 
-                                        rdexpr = RD_exp / cpi,
-                                        vigr = vig / cpi)
-
-### Calculating relative indicators
-regions_full <- regions_full %>% mutate(man_sh = manuf / grp,
-                                        min_sh = mining / grp)
-
-### Other
-regions_full <- regions_full %>% mutate(pat = pat_inv + pat_mod)
-
-
-### Imputing NAs in policy dummies
-policy_dummies_imputed <- regions_full %>% 
-  dplyr::select(region_shp, year, strategy, plan, act, program, body, institutes) %>%
-  drop_na(region_shp) %>%
-  arrange(region_shp, year) %>%
-  group_by(region_shp) %>%
-  fill(everything(), .direction = "down") %>%
-  rename_with(~paste0(.x, '_im'), strategy:institutes) %>%
-  ungroup()
-
-regions_full <- regions_full %>% full_join(policy_dummies_imputed, by = c("region_shp", "year"))
-
-
-# Saving datasets ==============================================================
-setwd(project_path)
+# Saving dataset ===============================================================
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 regions_rosstat %>% write_csv("data/regions_rosstat.csv")
-regions_full %>% write_csv("data/regions_full.csv")
 rm(list = ls())
